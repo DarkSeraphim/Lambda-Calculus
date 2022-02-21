@@ -32,11 +32,14 @@ ws = many (oneOf space') *> optional comment *> maybeEol
 wsn :: Parser ()
 wsn = ws *> optional (endOfLine *> wsn)
 
+lexeme :: Parser a -> Parser a
+lexeme a = a <* ws
+
 symbol :: String -> Parser String
-symbol s = string s <* ws
+symbol s = lexeme $ string s
 
 ident :: Parser String
-ident = many1 (noneOf (space' ++ "\n;()")) <* ws
+ident = lexeme $ many1 (noneOf (space' ++ "\n;()"))
 
 lambda :: Parser String
 lambda = symbol "λ" <|> symbol "\\"
@@ -56,15 +59,14 @@ var = Var <$> ident
 abs' :: Parser Expr
 abs' = do
   lambda
-  bind <- many1 (lower <* ws)
+  bind <- many1 (lexeme lower)
   symbol "."
   e <- expr
-  let inner = Abs (last bind) e
-  return $ foldr Abs inner (init bind)
+  return $ foldr Abs e bind
 
 app :: Parser Expr
 app = do
-  a <- many1 ((group <|> abs' <|> var) <* ws)
+  a <- many1 (lexeme $ group <|> abs' <|> var)
   guard $ length a >= 2
   return $ foldl1 App a
 
