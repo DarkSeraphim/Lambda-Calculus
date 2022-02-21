@@ -1,6 +1,7 @@
 module Ast
   ( Expr (..),
     Stmt (..),
+    Program,
   )
 where
 
@@ -14,3 +15,5 @@ data Stmt
   = Def String Expr
   | Expr Expr
   deriving (Show)
+
+type Program = [Stmt]

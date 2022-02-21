@@ -64,14 +64,10 @@ abs' = do
   e <- expr
   return $ foldr Abs e bind
 
-app :: Parser Expr
-app = do
-  a <- many1 (lexeme $ group <|> abs' <|> var)
-  guard $ length a >= 2
-  return $ foldl1 App a
-
 expr :: Parser Expr
-expr = group <|> abs' <|> try app <|> var
+expr = do
+  a <- many1 (lexeme $ group <|> abs' <|> var)
+  return $ foldl1 App a
 
 def :: Parser Stmt
 def = do
@@ -82,8 +78,8 @@ def = do
 stmt :: Parser Stmt
 stmt = try def <|> (Expr <$> expr)
 
-program :: Parser [Stmt]
+program :: Parser Program
 program = wsn *> (stmt `sepEndBy` wsn) <* eof
 
-parse :: String -> String -> Either ParseError [Stmt]
+parse :: String -> String -> Either ParseError Program
 parse = runParser program 0
