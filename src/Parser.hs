@@ -16,15 +16,13 @@ space' :: String
 space' = " \t\r\f\v"
 
 eol :: Parser ()
-eol = (endOfLine $> ()) <|> eof
+eol = endOfLine $> () <|> eof
 
 comment :: Parser String
 comment = char ';' *> manyTill anyChar (lookAhead eol)
 
 maybeEol :: Parser ()
-maybeEol = do
-  depth <- getState
-  when (depth >= 1) (optional (endOfLine *> ws))
+maybeEol = (() <$ flip when (optional (endOfLine *> ws))) . (>= 1) <$> getState
 
 ws :: Parser ()
 ws = many (oneOf space') *> optional comment *> maybeEol
@@ -44,39 +42,29 @@ ident = lexeme $ many1 (noneOf (space' ++ "\n;()"))
 lambda :: Parser String
 lambda = symbol "λ" <|> symbol "\\"
 
+incDepth :: Parser ()
+incDepth = modifyState (+ 1)
+
+decDepth :: Parser()
+decDepth = modifyState (subtract 1)
+
 group :: Parser Expr
-group = do
-  modifyState (+ 1)
-  symbol "("
-  e <- expr
-  modifyState (subtract 1)
-  symbol ")"
-  return e
+group = incDepth *> symbol "(" *> expr <* symbol ")" <* decDepth
 
 var :: Parser Expr
 var = Var <$> ident
 
 abs' :: Parser Expr
-abs' = do
-  lambda
-  bind <- many1 (lexeme lower)
-  symbol "."
-  e <- expr
-  return $ foldr Abs e bind
+abs' = flip (foldr Abs) <$> (lambda *> many1 (lexeme lower) <* symbol ".") <*> expr
 
 expr :: Parser Expr
-expr = do
-  a <- many1 (lexeme $ group <|> abs' <|> var)
-  return $ foldl1 App a
+expr = foldl1 App <$> many1 (lexeme $ group <|> abs' <|> var)
 
 def :: Parser Stmt
-def = do
-  i <- ident
-  symbol ":="
-  Def i <$> expr
+def = Def <$> (ident <* symbol ":=") <*> expr
 
 stmt :: Parser Stmt
-stmt = try def <|> (Expr <$> expr)
+stmt = try def <|> Expr <$> expr
 
 program :: Parser Program
 program = wsn *> (stmt `sepEndBy` wsn) <* eof
