@@ -4,9 +4,9 @@ module Lib
 where
 
 import Parser
-import System.Environment
+import Ast
+import Text.ParserCombinators.Parsec.Error (ParseError)
 
-entry :: IO ()
-entry = do
-  args <- getArgs
-  print $ parse "(unknown)" (head args)
+entry :: String -> Either ParseError Program
+entry = parse "(unknown)"
+
